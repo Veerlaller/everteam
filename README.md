@@ -24,12 +24,18 @@ All agents share **one memory.**
 
 ```
 Frontend (React + Vite + TS + Tailwind + Framer Motion)
-   │
-   ├─ MemoryProvider   → EverMe (hosted) → EverOS (self-hosted) → local (browser)
-   │                     identical behavior; active provider shown as a badge
-   │
-   └─ Agent brain      → Gemini (via Butterbase edge fn) → mock (graceful fallback)
+   │  (calls same-origin /eve and /memory/* — no secrets in the browser)
+   ▼
+Server bridge  (Vite dev plugin server/eve-bridge.ts, or Butterbase edge fn)
+   ├─ /eve         → Google Gemini        (GEMINI_API_KEY, server-side)
+   └─ /memory/*    → EverMind Cloud        (EVERMIND_TOKEN, server-side)
+
+MemoryProvider resolves: EverMind (hosted, via bridge) → EverOS → local
+Agent brain resolves:    Gemini (via bridge) → mock (graceful fallback)
+Active provider + brain shown as live badges in the header.
 ```
+
+**Why the bridge:** the browser can't call `api.evermind.ai` directly (CORS), and putting the token in a `VITE_` var would ship it in the bundle. The same-origin bridge solves both — it holds `GEMINI_API_KEY` and `EVERMIND_TOKEN` server-side and proxies. Verified live: `/memory/health` → `{ok:true}`, `/memory/store` → EverMind `202 + task_id`, `/eve` → Gemini extracts a structured rule from plain English.
 
 Two clean seams flip the app from "mock" to "real":
 
@@ -45,12 +51,16 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-It runs with **zero config** on the local memory provider (real persistence via `localStorage`). To go fully live, copy `.env.example` → `.env.local` and fill in:
+It runs with **zero config** on the local memory provider (real persistence via `localStorage`). To go fully live, copy `.env.example` → `.env.local` and fill in (all **server-side**, no `VITE_` prefix → never bundled):
 
-- `VITE_BUTTERBASE_BASE_URL` — your Butterbase app (the deployed backend the frontend calls)
-- `VITE_EVERME_TOKEN` — an EverMind key from [console.evermind.ai](https://console.evermind.ai) (base defaults to `https://api.evermind.ai`)
+- `GEMINI_API_KEY` — free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) → agents reply via Gemini
+- `EVERMIND_TOKEN` — key from [everos.evermind.ai](https://everos.evermind.ai) → memory runs on EverMind (badge flips to **EverMe**)
 
-The **Gemini key stays server-side** in the Butterbase `eve` edge function — never in the frontend, never committed.
+The Vite dev plugin reads these and serves `/eve` + `/memory/*`. For production, deploy `butterbase/` (same `/eve` contract).
+
+```bash
+npm run test   # deterministic scoring checks — proves rules bite + a learned rule re-ranks
+```
 
 ## Acceptance test (the loop, live)
 

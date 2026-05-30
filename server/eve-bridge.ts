@@ -88,42 +88,132 @@ async function callGemini(
   return { text: parsed.reply ?? 'Got it.', newMemory }
 }
 
+const EVERMIND_USER = 'valle-verde-trucking'
+
+// Server-side EverMind proxy. Keeps the token off the client AND avoids the
+// browser CORS block on api.evermind.ai. Returns the raw EverMind JSON so the
+// frontend can prove the hosted round-trip.
+async function evermindCall(
+  base: string,
+  token: string,
+  path: string,
+  body: unknown,
+): Promise<{ status: number; json: unknown }> {
+  const res = await fetch(`${base.replace(/\/$/, '')}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  })
+  let json: unknown
+  try {
+    json = await res.json()
+  } catch {
+    json = null
+  }
+  return { status: res.status, json }
+}
+
+function readBody(req: { on: (e: string, cb: (c?: unknown) => void) => void }): Promise<string> {
+  return new Promise((resolve) => {
+    let body = ''
+    req.on('data', (c) => (body += c))
+    req.on('end', () => resolve(body))
+  })
+}
+
 export function eveBridge(env: Record<string, string>): Plugin {
   const apiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''
   const model = env.GEMINI_MODEL || process.env.GEMINI_MODEL || 'gemini-flash-latest'
+  // EverMind token is SERVER-ONLY (note: no VITE_ prefix → never bundled).
+  const evermindBase = env.EVERMIND_BASE_URL || process.env.EVERMIND_BASE_URL || 'https://api.evermind.ai'
+  const evermindToken = env.EVERMIND_TOKEN || process.env.EVERMIND_TOKEN || ''
+
+  const reply = (res: { setHeader: (k: string, v: string) => void; end: (s: string) => void; statusCode?: number }, code: number, obj: unknown) => {
+    res.statusCode = code
+    res.setHeader('content-type', 'application/json')
+    res.end(JSON.stringify(obj))
+  }
+
   return {
     name: 'everteam-eve-bridge',
     configureServer(server) {
+      // --- Agent brain (Gemini) ---
       server.middlewares.use('/eve', (req, res) => {
-        if (req.method !== 'POST') {
-          res.statusCode = 405
-          res.end('POST only')
-          return
-        }
-        if (!apiKey) {
-          res.statusCode = 503
-          res.setHeader('content-type', 'application/json')
-          res.end(JSON.stringify({ text: '', newMemory: null, error: 'no GEMINI_API_KEY' }))
-          return
-        }
-        let body = ''
-        req.on('data', (c) => (body += c))
-        req.on('end', () => {
-          void (async () => {
-            try {
-              const payload = JSON.parse(body || '{}')
-              const out = await callGemini(payload, apiKey, model)
-              res.setHeader('content-type', 'application/json')
-              res.end(JSON.stringify(out))
-            } catch (e) {
-              res.statusCode = 500
-              res.setHeader('content-type', 'application/json')
-              res.end(JSON.stringify({ text: '', newMemory: null, error: String(e) }))
-            }
-          })()
-        })
+        if (req.method !== 'POST') return reply(res, 405, { error: 'POST only' })
+        if (!apiKey) return reply(res, 503, { text: '', newMemory: null, error: 'no GEMINI_API_KEY' })
+        void (async () => {
+          try {
+            const payload = JSON.parse((await readBody(req)) || '{}')
+            reply(res, 200, await callGemini(payload, apiKey, model))
+          } catch (e) {
+            reply(res, 500, { text: '', newMemory: null, error: String(e) })
+          }
+        })()
       })
-      console.info(`[everteam] eve bridge: ${apiKey ? `ON (model ${model})` : 'OFF (set GEMINI_API_KEY in .env.local)'}`)
+
+      // --- Hosted memory (EverMind) proxy ---
+      // GET /memory/health → { ok } ; POST /memory/search → EverMind search ;
+      // POST /memory/store  → EverMind store. Token stays here, server-side.
+      server.middlewares.use('/memory/health', (_req, res) => {
+        if (!evermindToken) return reply(res, 200, { ok: false, reason: 'no EVERMIND_TOKEN' })
+        void (async () => {
+          try {
+            const r = await evermindCall(evermindBase, evermindToken, '/api/v1/memories/search', {
+              query: 'ping',
+              filters: { user_id: EVERMIND_USER },
+              method: 'hybrid',
+              top_k: 1,
+            })
+            reply(res, 200, { ok: r.status === 200, status: r.status })
+          } catch (e) {
+            reply(res, 200, { ok: false, error: String(e) })
+          }
+        })()
+      })
+
+      server.middlewares.use('/memory/search', (req, res) => {
+        if (req.method !== 'POST') return reply(res, 405, { error: 'POST only' })
+        void (async () => {
+          try {
+            const { query } = JSON.parse((await readBody(req)) || '{}')
+            const r = await evermindCall(evermindBase, evermindToken, '/api/v1/memories/search', {
+              query: query || 'memory',
+              filters: { user_id: EVERMIND_USER },
+              method: 'hybrid',
+              top_k: 8,
+            })
+            reply(res, 200, { status: r.status, result: r.json })
+          } catch (e) {
+            reply(res, 500, { error: String(e) })
+          }
+        })()
+      })
+
+      server.middlewares.use('/memory/store', (req, res) => {
+        if (req.method !== 'POST') return reply(res, 405, { error: 'POST only' })
+        void (async () => {
+          try {
+            const m = JSON.parse((await readBody(req)) || '{}')
+            const r = await evermindCall(evermindBase, evermindToken, '/api/v1/memories', {
+              user_id: EVERMIND_USER,
+              messages: [
+                {
+                  sender_id: EVERMIND_USER, // EverMind requires sender_id === user_id for role:user
+                  role: 'user',
+                  timestamp: m.createdAt || Date.now(),
+                  content: `[${m.category}] ${m.text}${m.rule ? ` :: rule=${JSON.stringify(m.rule)}` : ''}`,
+                },
+              ],
+              async_mode: true,
+            })
+            reply(res, 200, { status: r.status, result: r.json })
+          } catch (e) {
+            reply(res, 500, { error: String(e) })
+          }
+        })()
+      })
+
+      console.info(`[everteam] eve bridge: ${apiKey ? `ON (Gemini ${model})` : 'OFF (no GEMINI_API_KEY)'} · memory: ${evermindToken ? `EverMind ${evermindBase}` : 'OFF (no EVERMIND_TOKEN)'}`)
     },
   }
 }
