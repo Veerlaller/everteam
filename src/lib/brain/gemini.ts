@@ -19,7 +19,8 @@ export class GeminiBrain implements Brain {
 
   async chat(input: BrainInput): Promise<BrainOutput> {
     try {
-      const res = await fetch(`${this.baseUrl.replace(/\/$/, '')}/eve`, {
+      const base = this.baseUrl === '/' ? '' : this.baseUrl.replace(/\/$/, '')
+      const res = await fetch(`${base}/eve`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
