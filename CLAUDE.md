@@ -35,7 +35,11 @@ Butterbase app_id / base URL: <fill in during Phase 0>.
 Dark (#0B0D10) + amber (#F5A623), monospace numbers, EverMe-style memory file-tree, quick purposeful motion. No generic AI look.
 
 ## Build status (for future sessions)
-- Phase 0: scaffold + CLAUDE.md + polished mock shell — DONE.
-- Phase 1: Load Hunt experience, mock-first, with REAL scoring logic + local (localStorage) MemoryProvider so persistence + re-rank already work — DONE.
-- Phase 2: pending external connections — needs (a) Butterbase MCP connected, (b) GitHub auth for public repo, (c) Gemini key in a Butterbase edge function, (d) EverMe token (optional; falls back).
-- Architecture is provider-swappable: `src/lib/memory/` (MemoryProvider) and `src/lib/agents/brain.ts` (mock vs Gemini) are the two seams to flip to "real".
+- Phase 0: scaffold + CLAUDE.md + polished shell — DONE.
+- Phase 1: Load Hunt with REAL scoring + local persistence — DONE.
+- Phase 2: LIVE & verified end-to-end — DONE.
+  - Agents = Google Gemini (model gemini-flash-latest). Key is SERVER-SIDE only: read by the Vite dev plugin `server/eve-bridge.ts` (and the Butterbase `eve` edge fn for prod). Frontend `GeminiBrain` POSTs `/eve`; falls back to MockBrain on failure.
+  - Memory = EverMind Cloud (`https://api.evermind.ai`, Bearer auth). `src/lib/memory/EverMeProvider.ts` does real hosted store (`POST /api/v1/memories`, sender_id MUST equal user_id) + search (`POST /api/v1/memories/search`, body needs `filters:{user_id}`), and mirrors to localStorage so the scorer keeps typed rules. Resolver order EverMe → EverOS → local.
+  - All 5 acceptance-test steps pass live (see README).
+  - Keys live in `.env.local` (gitignored). Butterbase MCP is connected but `butterbase/` (schema + eve fn) is not deployed — local Gemini bridge serves the same `/eve` contract, so the app is fully live without it.
+- Seams to flip providers: `src/lib/memory/` and `src/lib/brain/`.

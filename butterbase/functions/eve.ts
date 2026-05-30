@@ -87,7 +87,7 @@ export async function runEve(payload: EvePayload, env: EveEnv): Promise<{ text: 
   const data = await res.json()
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
 
-  let parsed: { reply?: string; memory?: { category: string; text: string; rule?: unknown } | null } = {}
+  let parsed: { reply?: string; memory?: { category: string; text: string; rule?: unknown } | null }
   try {
     parsed = JSON.parse(raw)
   } catch {

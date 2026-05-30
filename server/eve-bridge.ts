@@ -68,7 +68,7 @@ async function callGemini(
     candidates?: { content?: { parts?: { text?: string }[] } }[]
   }
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
-  let parsed: { reply?: string; memory?: { category: string; text: string; rule?: unknown } | null } = {}
+  let parsed: { reply?: string; memory?: { category: string; text: string; rule?: unknown } | null }
   try {
     parsed = JSON.parse(raw)
   } catch {
@@ -123,7 +123,6 @@ export function eveBridge(env: Record<string, string>): Plugin {
           })()
         })
       })
-      // eslint-disable-next-line no-console
       console.info(`[everteam] eve bridge: ${apiKey ? `ON (model ${model})` : 'OFF (set GEMINI_API_KEY in .env.local)'}`)
     },
   }

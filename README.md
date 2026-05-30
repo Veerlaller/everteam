@@ -67,5 +67,14 @@ React 19 · Vite · TypeScript · Tailwind CSS v4 · Framer Motion · Zustand ·
 ## Status
 
 - ✅ Phase 0 — scaffold, guardrails, polished shell
-- ✅ Phase 1 — Load Hunt experience with real scoring + local persistence (store → recall → re-rank works now)
-- 🔧 Phase 2 — wire Butterbase edge fn + Gemini + EverMe (seams in place; see `CLAUDE.md`)
+- ✅ Phase 1 — Load Hunt experience with real scoring + persistence
+- ✅ Phase 2 — **LIVE**: agents reply via **Google Gemini** (key server-side), memory runs on **EverMind** (`api.evermind.ai`, hosted). All 5 acceptance-test steps verified end-to-end (rule stated in chat → Gemini extracts it → stored → hunt re-ranks → persists across reload → Dispatch respects the same shared memory).
+
+### Acceptance test — verified live ✅
+1. ✅ Told Eve *"I won't run anything east of Denver anymore"* → Gemini extracted `{no_east_of: -104.99}`
+2. ✅ Stored to EverMind (`202 queued`, real `request_id`) + mirrored locally; card animated into the Harness
+3. ✅ Re-ran the hunt → *"Dropping anything east of your line — cut 1"*, Amarillo dropped, board re-ranked
+4. ✅ Reloaded → rule persisted, badges still **EverMe + Gemini**
+5. ✅ Asked **Dispatch**: *"Dallas is east of Denver, so that's a no-go per your rule"* — same shared memory
+
+> The Gemini key is read server-side by the Vite dev bridge (`server/eve-bridge.ts`) or the Butterbase `eve` edge function — never shipped in the browser bundle.
