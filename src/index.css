@@ -1,0 +1,98 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ink: #0b0d10;
+  --color-ink-2: #0f1217;
+  --color-panel: #12161c;
+  --color-panel-2: #161b22;
+  --color-line: #232a33;
+  --color-line-2: #2c343f;
+  --color-amber: #f5a623;
+  --color-amber-soft: #f7b955;
+  --color-amber-dim: #6b5326;
+  --color-text: #f4f6f8;
+  --color-muted: #9aa6b2;
+  --color-faint: #616c78;
+  --color-good: #3fb950;
+  --color-warn: #f5a623;
+  --color-bad: #f0506e;
+
+  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background-color: var(--color-ink);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Subtle topographic / grid texture for the dark canvas */
+.bg-topo {
+  background-color: var(--color-ink);
+  background-image:
+    radial-gradient(circle at 18% 12%, rgba(245, 166, 35, 0.06), transparent 38%),
+    radial-gradient(circle at 88% 82%, rgba(245, 166, 35, 0.04), transparent 42%),
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    100% 100%,
+    44px 44px,
+    44px 44px;
+}
+
+/* Numbers everywhere render in mono */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Thin custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line-2);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a444f;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.status-live {
+  animation: pulse-dot 1.8s ease-in-out infinite;
+}
+
+.glow-amber {
+  box-shadow:
+    0 0 0 1px rgba(245, 166, 35, 0.35),
+    0 0 28px -6px rgba(245, 166, 35, 0.45);
+}

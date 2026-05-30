@@ -1,0 +1,182 @@
+import type { Load } from '../types'
+
+// Approx coordinates for the stylized western-US map.
+const C = {
+  fresno: { lat: 36.74, lng: -119.79 },
+  bakersfield: { lat: 35.37, lng: -119.02 },
+  stockton: { lat: 37.96, lng: -121.29 },
+  modesto: { lat: 37.64, lng: -121.0 },
+  visalia: { lat: 36.33, lng: -119.29 },
+  salinas: { lat: 36.68, lng: -121.66 },
+  la: { lat: 34.05, lng: -118.24 },
+  ontario: { lat: 34.06, lng: -117.65 },
+  sacramento: { lat: 38.58, lng: -121.49 },
+  reno: { lat: 39.53, lng: -119.81 },
+  vegas: { lat: 36.17, lng: -115.14 },
+  phoenix: { lat: 33.45, lng: -112.07 },
+  slc: { lat: 40.76, lng: -111.89 },
+  amarillo: { lat: 35.2, lng: -101.83 },
+  dallas: { lat: 32.78, lng: -96.8 },
+  portland: { lat: 45.52, lng: -122.68 },
+}
+
+/**
+ * 10 Central-Valley reefer lanes designed so the carrier's rules visibly bite:
+ *  - C-103 is sub-$2/mi (min_rate)
+ *  - C-104 is Coyote (block_broker)
+ *  - C-105 returns Sunday + is east of Denver (home_by + acceptance-test rule)
+ *  - C-109 puts Truck #3 on a 720mi run (truck_regional)
+ *  - C-108 has $4.00/mi but 130mi deadhead — the "math liked it, you knew better" trap
+ */
+export const MOCK_LOADS: Load[] = [
+  {
+    id: 'C-101',
+    origin: 'Fresno, CA',
+    originCoord: C.fresno,
+    dest: 'Los Angeles, CA',
+    destCoord: C.la,
+    miles: 220,
+    deadheadMi: 15,
+    equipment: 'Reefer',
+    broker: 'RXO',
+    rateTotal: 615,
+    estReturnDay: 'Thu',
+    truck: '#1',
+    commodity: 'Table grapes',
+  },
+  {
+    id: 'C-102',
+    origin: 'Fresno, CA',
+    originCoord: C.fresno,
+    dest: 'Amarillo, TX',
+    destCoord: C.amarillo,
+    miles: 1130,
+    deadheadMi: 25,
+    equipment: 'Reefer',
+    broker: 'TQL',
+    rateTotal: 3150,
+    estReturnDay: 'Fri',
+    truck: '#2',
+    commodity: 'Almonds',
+  },
+  {
+    id: 'C-103',
+    origin: 'Stockton, CA',
+    originCoord: C.stockton,
+    dest: 'Reno, NV',
+    destCoord: C.reno,
+    miles: 215,
+    deadheadMi: 60,
+    equipment: 'Reefer',
+    broker: 'Echo',
+    rateTotal: 395, // 1.84 / mi — below floor
+    estReturnDay: 'Wed',
+    truck: '#4',
+    commodity: 'Dairy',
+  },
+  {
+    id: 'C-104',
+    origin: 'Salinas, CA',
+    originCoord: C.salinas,
+    dest: 'Las Vegas, NV',
+    destCoord: C.vegas,
+    miles: 430,
+    deadheadMi: 30,
+    equipment: 'Reefer',
+    broker: 'Coyote', // blocked
+    rateTotal: 1140,
+    estReturnDay: 'Thu',
+    truck: '#1',
+    commodity: 'Romaine',
+  },
+  {
+    id: 'C-105',
+    origin: 'Fresno, CA',
+    originCoord: C.fresno,
+    dest: 'Dallas, TX',
+    destCoord: C.dallas,
+    miles: 1480,
+    deadheadMi: 25,
+    equipment: 'Reefer',
+    broker: 'Arrive',
+    rateTotal: 3100,
+    estReturnDay: 'Sun', // past Friday
+    truck: '#2',
+    commodity: 'Almonds',
+  },
+  {
+    id: 'C-106',
+    origin: 'Modesto, CA',
+    originCoord: C.modesto,
+    dest: 'Las Vegas, NV',
+    destCoord: C.vegas,
+    miles: 400,
+    deadheadMi: 145,
+    equipment: 'Reefer',
+    broker: 'Uber Freight',
+    rateTotal: 1080,
+    estReturnDay: 'Fri',
+    truck: '#4',
+    commodity: 'Frozen foods',
+  },
+  {
+    id: 'C-107',
+    origin: 'Visalia, CA',
+    originCoord: C.visalia,
+    dest: 'Sacramento, CA',
+    destCoord: C.sacramento,
+    miles: 195,
+    deadheadMi: 25,
+    equipment: 'Reefer',
+    broker: 'RXO',
+    rateTotal: 540,
+    estReturnDay: 'Wed',
+    truck: '#1',
+    commodity: 'Stone fruit',
+  },
+  {
+    id: 'C-108',
+    origin: 'Bakersfield, CA',
+    originCoord: C.bakersfield,
+    dest: 'Ontario, CA',
+    destCoord: C.ontario,
+    miles: 130,
+    deadheadMi: 130, // huge deadhead — the trap
+    equipment: 'Reefer',
+    broker: 'Arrive',
+    rateTotal: 520, // 4.00 / mi
+    estReturnDay: 'Tue',
+    truck: '#3', // regional, within limit — OK
+    commodity: 'Berries',
+  },
+  {
+    id: 'C-109',
+    origin: 'Fresno, CA',
+    originCoord: C.fresno,
+    dest: 'Salt Lake City, UT',
+    destCoord: C.slc,
+    miles: 720,
+    deadheadMi: 30,
+    equipment: 'Reefer',
+    broker: 'TQL',
+    rateTotal: 1660,
+    estReturnDay: 'Sat', // past Friday
+    truck: '#3', // long run on Truck #3 — violates regional rule
+    commodity: 'Cheese',
+  },
+  {
+    id: 'C-110',
+    origin: 'Stockton, CA',
+    originCoord: C.stockton,
+    dest: 'Portland, OR',
+    destCoord: C.portland,
+    miles: 600,
+    deadheadMi: 40,
+    equipment: 'Reefer',
+    broker: 'Echo',
+    rateTotal: 1500,
+    estReturnDay: 'Sat', // past Friday
+    truck: '#2',
+    commodity: 'Berries',
+  },
+]
